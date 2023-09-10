@@ -1,32 +1,62 @@
-const router = require('express').Router();
-const { User } = require('../models');
-const withAuth = require('../utils/auth');
+const router = require("express").Router();
+const { Blog, Comment, User } = require("../models");
 
-router.get('/', withAuth, async (req, res) => {
-    try {
-        const userData = await User.findAll({
-            attributes: { exclude: ['password'] },
-            order: [['name', 'ASC']],
+// get all posts for homepage
+router.get("/", (req, res) => {
+    Blog.findAll({
+        include: [User],
+    })
+        .then((blogData) => {
+            const blogs = blogData.map((blog) => blog.get({ plain: true }));
+
+            res.render("all-blog-posts", { blogs });
+        })
+        .catch((err) => {
+            res.status(500).json(err);
         });
-
-        const users = userData.map((blog) => blog.get({ plain: true }));
-
-        res.render('homepage', {
-            users,
-            logged_in: req.session.logged_in,
-        });
-    } catch (err) {
-        res.status(500).json(err);
-    }
 });
 
-router.get('/login', (req, res) => {
-    if (req.session.logged_in) {
-        res.redirect('/');
+// get single post
+router.get("/post/:id", (req, res) => {
+    Blog.findByPk(req.params.id, {
+        include: [
+            User,
+            {
+                model: Comment,
+                include: [User],
+            },
+        ],
+    })
+        .then((blogData) => {
+            if (blogData) {
+                const blogs = blogData.get({ plain: true });
+
+                res.render("single-blog-post", { blogs });
+            } else {
+                res.status(404).end();
+            }
+        })
+        .catch((err) => {
+            res.status(500).json(err);
+        });
+});
+
+router.get("/login", (req, res) => {
+    if (req.session.loggedIn) {
+        res.redirect("/");
         return;
     }
 
-    res.render('login');
+    res.render("login");
+});
+
+router.get("/signup", (req, res) => {
+    if (req.session.loggedIn) {
+        res.redirect("/");
+        return;
+    }
+
+    res.render("signup");
 });
 
 module.exports = router;
